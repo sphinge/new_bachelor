@@ -62,3 +62,14 @@ cmake -DBUILD_DOCUMENTATION=ON -DBoost_NO_SYSTEM_PATHS=TRUE -DBOOST_INCLUDEDIR=/
 make doc
 
 Note: Replace "/path/to/boost/include/" and "/path/to/boost/lib/" with the actual paths to the Boost include and library directories.
+
+#XGBoost
+git clone --recursive https://github.com/dmlc/xgboost
+
+cd xgboost
+mkdir build
+cd build
+cmake ..
+make -j$(nproc)
+
+
