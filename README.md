@@ -12,6 +12,7 @@ sudo apt-get install doxygen graphviz
 sudo apt-get install python3 python3-pip
 pip3 install sphinx
 pip3 install sphinxcontrib-doxylink
+sudo apt-get install libomp-dev
 
     Download the most recent Boost binaries and set up Boost:
 
