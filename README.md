@@ -63,7 +63,7 @@ make doc
 
 Note: Replace "/path/to/boost/include/" and "/path/to/boost/lib/" with the actual paths to the Boost include and library directories.
 
-#XGBoost
+# XGBoost
 git clone --recursive https://github.com/dmlc/xgboost
 
 cd xgboost
