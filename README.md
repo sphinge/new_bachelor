@@ -1,5 +1,12 @@
 # new_bachelor
+# For others:
+Neural Network : make | ./Neural ./Neural /Shark/examples/Supervised/data/mnist_subset.libsvm
 
+Logistic Regression: make | ./Logistic
+
+XGBoost: g++ -o boost_code boost_code.cpp -I/path/to/xgboost/include -L/path/to/xgboost/lib -lxgboost (g++ -o boost Boost.cpp -I/home/wiktoria/Desktop/Thesis/xgboost/include -L/home/wiktoria/Desktop/Thesis/xgboost/lib -lxgboost) | ./boost
+
+# For me:
 Install the required tools (Doxygen, Graphviz, Python, CMake, and Sphinx):
 
 bash
