@@ -1,5 +1,7 @@
 # new_bachelor
 # For others:
+Code is in master branch.
+
 Neural Network : make | ./Neural ./Neural /Shark/examples/Supervised/data/mnist_subset.libsvm
 
 Logistic Regression: make | ./Logistic
