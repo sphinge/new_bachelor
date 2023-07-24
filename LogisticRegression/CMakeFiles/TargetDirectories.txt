@@ -1,3 +1,0 @@
-/home/wiktoria/Desktop/Thesis/LogisticRegression/CMakeFiles/Logistic.dir
-/home/wiktoria/Desktop/Thesis/LogisticRegression/CMakeFiles/edit_cache.dir
-/home/wiktoria/Desktop/Thesis/LogisticRegression/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,28 @@
+
+# /
+/CMakeFiles
+/cmake
+/CTestTestfile.cmake
+/CPackSourceConfig.cmake
+/CPackConfig.cmake
+/CMakeCache.txt
+/cmake_install.cmake
+/bin
+/.settings
+/autom4te.cache
+/lib
+/.cdtproject
+/.project
+/config.status
+/configure
+/Makefile
+/Makefile.in
+/SharkConfig
+/*.dsw
+/share
+SharkConfig.cmake
+SharkConfigVersion.cmake
+SharkTargets.cmake
+
+# csv
+learning_curve.csv

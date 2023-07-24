@@ -1,5 +1,5 @@
 CMakeFiles/Neural.dir/Neural.cpp.o: \
- /home/wiktoria/Desktop/Thesis/NeuralNetwork/Neural.cpp \
+ /home/mayag88/Documents/Code/new_bachelor/NeuralNetwork/Neural.cpp \
  /usr/include/stdc-predef.h /usr/local/include/shark/Models/LinearModel.h \
  /usr/local/include/shark/Models/AbstractModel.h \
  /usr/local/include/shark/Core/Flags.h \
