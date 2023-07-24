@@ -1,3 +1,0 @@
-/home/mayag88/Documents/Code/new_bachelor/NeuralNetwork/CMakeFiles/Neural.dir
-/home/mayag88/Documents/Code/new_bachelor/NeuralNetwork/CMakeFiles/edit_cache.dir
-/home/mayag88/Documents/Code/new_bachelor/NeuralNetwork/CMakeFiles/rebuild_cache.dir
