@@ -1,0 +1,10 @@
+
+# /
+CMakeFiles
+Makefile
+*.cmake
+CMakeCache.txt
+
+# csv
+learning_curve.csv
+*.csv
