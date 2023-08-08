@@ -1,4 +1,5 @@
 # new_bachelor
+IMPORTANT! Neural_V3 needs to be checked. 
 
 # Updated For Others
 I have implemented Neural Network, Logistic Regression, SVM and Knn. I have some issues with them, so let me go one by one.
