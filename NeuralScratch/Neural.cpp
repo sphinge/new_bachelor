@@ -14,7 +14,7 @@ typedef Eigen::MatrixXf Matrix;
 typedef Eigen::RowVectorXf RowVector;
 typedef Eigen::VectorXf ColVector;
 
-std::ofstream weightFile("weights.csv");
+std::ofstream weightFile("weight_updates.txt");
 
 class NeuralNetwork {
 public:
@@ -38,11 +38,16 @@ public:
 NeuralNetwork::NeuralNetwork(std::vector<uint> topology, Scalar learningRate)
 {
     this->learningRate = learningRate;
-    for (uint i = 0; i < topology.size(); i++) {
-        // Initialize neuron layers
-        if (i == topology.size() - 1)
+    for (uint i = 0; i < topology.size(); i++) { //"Loop through each layer in the topology
+        if (i == topology.size() - 1) // Initialize neuron layers
+            // For the first layer (input layer with 4 neurons)
+            // Create a RowVector with 4 elements (no bias neuron added).
+            // For the third layer (output layer with 3 neurons)
+            // Create a RowVector with 3 elements (no bias neuron added).
             neuronLayers.push_back(new RowVector(topology[i]));
         else
+            // For the second layer (hidden layer with 8 neurons)
+            // Create a RowVector with 9 elements (8 neurons + 1 bias neuron)
             neuronLayers.push_back(new RowVector(topology[i] + 1));
 
         // Initialize cache and delta vectors
@@ -51,6 +56,8 @@ NeuralNetwork::NeuralNetwork(std::vector<uint> topology, Scalar learningRate)
 
         // Add bias neuron (set to 1.0) to all layers except the output layer
         if (i != topology.size() - 1) {
+            // For the second layer (hidden layer with 8 neurons)
+            // Set the bias neuron's value to 1.0 in both the neuron layer and cache layer.
             neuronLayers.back()->coeffRef(topology[i]) = 1.0;
             cacheLayers.back()->coeffRef(topology[i]) = 1.0;
         }
@@ -58,13 +65,15 @@ NeuralNetwork::NeuralNetwork(std::vector<uint> topology, Scalar learningRate)
         // Initialize weights matrix
         if (i > 0) {
             if (i != topology.size() - 1) {
-                weights.push_back(new Matrix(topology[i - 1] + 1, topology[i] + 1));
-                weights.back()->setRandom();
-                weights.back()->col(topology[i]).setZero();
-                weights.back()->coeffRef(topology[i - 1], topology[i]) = 1.0;
+                // For the second layer (hidden layer)
+                weights.push_back(new Matrix(topology[i - 1] + 1, topology[i] + 1));// Initialize a weight matrix with dimensions (4 + 1)
+                weights.back()->setRandom(); // Set random values in the matrix.
+                weights.back()->col(topology[i]).setZero(); // Set the last column of the matrix to all zeros (corresponding to bias weights)
+                weights.back()->coeffRef(topology[i - 1], topology[i]) = 1.0; // Set the element at (4, 8) to 1.0 (corresponding to the bias connection).
             } else {
-                weights.push_back(new Matrix(topology[i - 1] + 1, topology[i]));
-                weights.back()->setRandom();
+                // For the third layer (output layer)
+                weights.push_back(new Matrix(topology[i - 1] + 1, topology[i])); // Initialize a weight matrix with dimensions (8 + 1)
+                weights.back()->setRandom(); // Set random values in the matrix.
             }
         }
     }
@@ -123,23 +132,29 @@ void NeuralNetwork::calcErrors(RowVector& output)
     }
 }
 
+int countUpdate = 0;
 
 void NeuralNetwork::updateWeights()
 {
-    for (uint i = 0; i < weights.size(); i++) {
-        weightFile << "Layer " << i << ":"; // Add layer information
-        for (uint c = 0; c < weights[i]->cols(); c++) {
+    weightFile << "Iteration:" << countUpdate << "\n";
+    countUpdate = countUpdate + 1;
+    for (uint i = 0; i < weights.size(); i++) { 
+        //i = 1: The weight matrix weights[0] has dimensions (4 + 1) x 8 (including the bias neuron).
+        //i = 2: The weight matrix weights[1] has dimensions 8 x 3.
+        //weightFile << "Layer " << i << ":"; // Add layer information
+        weightFile << "Layer:" << i << "\n";
+        int countWeight = 1;
+        for (uint c = 0; c < weights[i]->cols(); c++) {//The loop iterates through each row (r) and column (c) of weights[0] to update the weights.
             for (uint r = 0; r < weights[i]->rows(); r++) {
                 // Consider the bias neuron (always set to 1.0) for all layers
-                Scalar delta = learningRate * deltas[i + 1]->coeffRef(c) * neuronLayers[i]->coeffRef(r);
-                weights[i]->coeffRef(r, c) += delta;
-                weightFile << "," << weights[i]->coeffRef(r, c);
+                Scalar delta = learningRate * deltas[i + 1]->coeffRef(c) * neuronLayers[i]->coeffRef(r); //The deltas for the next layer (deltas[2]) represent the errors in the output layer.
+                weights[i]->coeffRef(r, c) += delta; //The neuron output values of the current hidden layer (neuronLayers[1]) are used to calculate the updates for the weights.
+                weightFile << "Weight numer:" << countWeight << ",Weight Value:" << weights[i]->coeffRef(r, c) << "\n";
+                countWeight = countWeight + 1;
             }
         }
-        weightFile << "\n";
     }
 }
-
 
 // Function for backward propagation of errors made by neurons
 void NeuralNetwork::propagateBackward(RowVector& output)
@@ -167,7 +182,7 @@ void NeuralNetwork::train(std::vector<RowVector*>& data, std::vector<RowVector*>
             -trueLabel.dot(predictedOutput.unaryExpr([](Scalar x) { return std::log(x); })) -
             (1 - trueLabel.array()).matrix().dot(((1 - predictedOutput.array()).unaryExpr([](Scalar x) { return std::log(1 - x); })).matrix());
 
-        weightFile << "i: " << i << " Cross-Entropy Loss: " << crossEntropyLoss << "\n";
+        //std::cout << "i: " << i << " Cross-Entropy Loss: " << crossEntropyLoss << std::endl;
     }
 }
 
@@ -186,14 +201,13 @@ void NeuralNetwork::test(std::vector<RowVector*>& data, std::vector<RowVector*>&
 
         std::cout << "True label: " << trueLabel << std::endl;
 
-        // Convert predictedOutput to one-hot encoded representation
-        RowVector predictedClass = predictedOutput.unaryExpr([](Scalar x) { return x > 0.5 ? 1.0f : 0.0f; });
-
-        std::cout << "Predicted label: " << predictedClass << std::endl;
+        std::cout << "Predicted label: " << predictedOutput << std::endl;
 
         Scalar crossEntropyLoss =
-            -trueLabel.dot(predictedOutput.unaryExpr([](Scalar x) { return std::log(x); })) -
+            -trueLabel.dot(predictedOutput.unaryExpr([](Scalar x) { return std::log(x); })) - //when true label is 1
             (1 - trueLabel.array()).matrix().dot(((1 - predictedOutput.array()).unaryExpr([](Scalar x) { return std::log(1 - x); })).matrix());
+
+        std::cout << "i: " << i << " Cross-Entropy Loss: " << crossEntropyLoss << std::endl;
 
         totalCrossEntropyLoss += crossEntropyLoss;
     }
@@ -294,8 +308,8 @@ typedef std::vector<RowVector*> data;
 
 int main()
 {
-    // Create a neural network with topology: 4 input neurons, 3 hidden neurons, 3 output neurons (one-hot encoded)
-    NeuralNetwork n({4, 3, 3});
+    // Create a neural network with topology: 4 input neurons, 8 hidden neurons, 3 output neurons (one-hot encoded)
+    NeuralNetwork n({4, 8, 3});
 
     // Read training data from CSV files
     data train_data, train_labels;
