@@ -26,13 +26,13 @@ double sigmoid(double x)
 {
     return 1 / (1 + exp(-x));
 }
-double relu(double x)
+double lrelu(double x)
 {
     return max(0.0, x);
 }
-double dlrelu(double x)
+double drelu(double x)
 {
-    return x >= 0 ? 1 : RELU_LEAK;
+    return x >= 0 ? 1 : 0;
 }
 vector<double> softmax(vector<double> &z)
 {
@@ -86,13 +86,13 @@ public:
         double z = bias;
         for (int i = 0; i < nInputs; ++i)
             z += x[i] * weights[i];
-        y = isHidden ? relu(z) : tanh(z);
+        y = isHidden ? lrelu(z) : (z);
         return y;
     }
 
     double dy_dz()
     {
-        return isHidden ? dlrelu(y) : 1;
+        return isHidden ? drelu(y) : 1;
     }
 
     double dz_dx(int i)
@@ -254,7 +254,7 @@ int main()
     vector<vector<double>> X; // Features
     vector<vector<double>> Y; // Labels
 
-    ifstream file("iris.csv");
+    ifstream file("iris_augmented.csv");
     string line, value;
 
     while (getline(file, line))
@@ -283,7 +283,7 @@ int main()
     vector<vector<double>> X_test; // Features
     vector<vector<double>> Y_test; // Labels
 
-    ifstream test_file("iris_test.csv");
+    ifstream test_file("iris_aug_test.csv");
     string line_test, value_test;
 
     while (getline(test_file, line_test))
