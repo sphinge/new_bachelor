@@ -1,4 +1,6 @@
 // g++ iris_clf.cpp -I/usr/include/eigen3  -o clf
+
+// TODO: make it batch wise
 #include <iostream>
 #include <Eigen/Dense>
 #include <vector>
@@ -146,8 +148,8 @@ int main()
     // Load Iris dataset (you need to replace this with your data loading code)
 
     string filename_train = "../iris_data/iris_aug_train.csv"; // Replace with your CSV file name
-    int numFeatures = 4;                             // Number of features
-    int numLabels = 3;                               // Number of label classes
+    int numFeatures = 4;                                       // Number of features
+    int numLabels = 3;                                         // Number of label classes
 
     pair<MatrixXd, MatrixXd> data_train = readCSV(filename_train, numFeatures, numLabels);
     MatrixXd X_train = data_train.first;
