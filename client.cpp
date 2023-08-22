@@ -447,8 +447,8 @@ int main() {
         std::string received_str = receiveWithDynamicBuffering(clientSocket);
         log("Received network from server");
 
-        vector<int> nNeuronsEachLayer = {4, 8, 3}; 
-        Network networkClient(nNeuronsEachLayer);
+        //vector<int> nNeuronsEachLayer = {4, 8, 3}; 
+        //Network networkClient(nNeuronsEachLayer);
 
         Network networkClient = deserialize_network(received_str);
 
@@ -475,3 +475,4 @@ int main() {
     close(clientSocket);
     return 0;
 }
+
