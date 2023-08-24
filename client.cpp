@@ -192,13 +192,14 @@ public:
 
     vector<vector<float>> getWeights() const{
         vector<vector<float>> all_weights;
-        for (auto &layer : layers) {
+        for (const auto &layer : layers) {
             for (auto &neuron : layer.neurons) {
                 all_weights.push_back(neuron.weights);
             }
         }
         return all_weights;
     }
+
 
     void setWeights(const vector<vector<float>>& weights) {
         int counter = 0;
@@ -208,6 +209,77 @@ public:
             }
         }
     }
+
+    vector<float> getBiases() const {
+        vector<float> all_biases;
+        for (const auto &layer : layers) {
+            for (auto &neuron : layer.neurons) {
+                all_biases.push_back(neuron.bias);
+            }
+        }
+        return all_biases;
+    }
+
+    void setBiases(const vector<float>& biases) {
+        int counter = 0;
+        for (auto &layer : layers) {
+            for (auto &neuron : layer.neurons) {
+                neuron.bias = biases[counter++];
+            }
+        }
+    }
+
+    std::string serialize() const {
+        std::ostringstream oss;
+
+        auto weights = getWeights();
+        for (const auto& neuronWeights : weights) {
+            for (float weight : neuronWeights) {
+                oss << weight << " ";
+            }
+        }
+
+        auto biases = getBiases();
+        for (float bias : biases) {
+            oss << bias << " ";
+        }
+
+        std::string result = oss.str();
+        if (!result.empty()) {
+            result.pop_back(); // Remove the last space
+        }
+
+        return result;
+    }
+
+    void deserialize(const std::string& serialized) {
+        std::istringstream iss(serialized);
+
+        std::vector<float> allValues;
+        float value;
+        while (iss >> value) {
+            allValues.push_back(value);
+        }
+
+        std::vector<std::vector<float>> weights = getWeights();
+        size_t index = 0;
+
+        for (auto& neuronWeights : weights) {
+            for (size_t j = 0; j < neuronWeights.size(); ++j) {
+                neuronWeights[j] = allValues[index++];
+            }
+        }
+
+        setWeights(weights);
+
+        std::vector<float> biases;
+        while (index < allValues.size()) {
+            biases.push_back(allValues[index++]);
+        }
+
+        setBiases(biases);
+    }
+
 };
 
 float trainOneSample(Network &network, vector<float> &x, vector<float> &y)
@@ -269,64 +341,6 @@ float computeAccuracy(Network &network, vector<vector<float>> &X, vector<vector<
     return (float)correctPredictions / X.size();
 }
 
-std::string serialize_weights(const std::vector<std::vector<float>>& weights) {
-    std::ostringstream oss;
-    for (const auto& weight_list : weights) {
-        for (float w : weight_list) {
-            oss << w << ' ';  // Space-separated values within a layer
-        }
-        oss << ';';  // Semicolon-separated layers
-    }
-    return oss.str();
-}
-
-std::vector<std::vector<float>> deserialize_weights(const std::string& serialized_weights) {
-    std::vector<std::vector<float>> weights;
-    std::istringstream main_iss(serialized_weights);
-    std::string layer_weights;
-    while (std::getline(main_iss, layer_weights, ';')) {
-        std::vector<float> current_layer;
-        std::istringstream layer_iss(layer_weights);
-        float w;
-        while (layer_iss >> w) {
-            current_layer.push_back(w);
-        }
-        weights.push_back(current_layer);
-    }
-    return weights;
-}
-
-std::string serialize_network(const Network &network) {
-    std::ostringstream oss;
-    // Serialize the network's topology
-    for (size_t i = 0; i < network.layers.size(); ++i) {
-        oss << network.layers[i].nNeurons << (i < network.layers.size() - 1 ? "," : ";");
-    }
-    // Serialize the network's weights
-    oss << serialize_weights(network.getWeights());
-    return oss.str();
-}
-
-Network deserialize_network(const std::string &serialized_network) {
-    std::istringstream iss(serialized_network);
-    std::string topology, weights_str;
-    getline(iss, topology, ';');
-    getline(iss, weights_str);
-
-    cout << topology << endl;
-    cout << weights_str << endl;
-
-    std::vector<int> nNeuronsEachLayer;
-    std::istringstream top_iss(topology);
-    std::string neuron_count_str;
-    while (getline(top_iss, neuron_count_str, ',')) {
-        nNeuronsEachLayer.push_back(stoi(neuron_count_str));
-    }
-
-    Network network(nNeuronsEachLayer);
-    network.setWeights(deserialize_weights(weights_str));
-    return network;
-}
 
 
 namespace {
@@ -366,28 +380,14 @@ std::string receiveWithDynamicBuffering(int &sock) {
     return accumulator;
 }
 
-const int EXCHANGES = 2; // N is the number of times the exchange happens
+const int EXCHANGES = 10; // N is the number of times the exchange happens
 
 int main() {
-
-    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == -1) {
-        exitWithError("Cannot create socket");
-    }
-
-    struct sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(8080);  // Assuming the server is running on port 8080
-    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-    if (connect(clientSocket, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) == -1) {
-        exitWithError("Failed to connect to server");
-    }
 
     vector<vector<float>> X; // Features
     vector<vector<float>> Y; // Labels
 
-    ifstream file("iris.csv");
+    ifstream file("iris_test.csv"); //TODO: CHANGE IRIS TEST HAS 10 SAMPLES 
     string line, value;
 
     while (getline(file, line))
@@ -442,19 +442,33 @@ int main() {
 
     test_file.close();
 
+    int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == -1) {
+        exitWithError("Cannot create socket");
+    }
+
+    struct sockaddr_in serverAddress;
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_port = htons(8080);  // Assuming the server is running on port 8080
+    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    if (connect(clientSocket, (struct sockaddr*) &serverAddress, sizeof(serverAddress)) == -1) {
+        exitWithError("Failed to connect to server");
+    } else {
+        log("Connection established.");
+    }
+
     for (int exchange = 0; exchange < EXCHANGES; ++exchange) {
+        log("Waiting for model...\n");
         sleep(3);
         std::string received_str = receiveWithDynamicBuffering(clientSocket);
-        log("Received network from server");
+        log("Received network from server: " + received_str + "\n");
 
-        //vector<int> nNeuronsEachLayer = {4, 8, 3}; 
-        //Network networkClient(nNeuronsEachLayer);
-
-        Network networkClient = deserialize_network(received_str);
+        Network networkClient({4,8,3});  // Initialize with an empty structure. Will be updated by deserialize.
+        networkClient.deserialize(received_str);
 
         float accuracy = 0.0;
-        for (unsigned int i= 0; i < NEPOCH; ++i)
-        {
+        for (unsigned int i= 0; i < NEPOCH; ++i) {
             float loss = trainOneEpoch(networkClient, X, Y);
             float accuracy_i = computeAccuracy(networkClient, X_test, Y_test);
             accuracy += accuracy_i;
@@ -462,10 +476,9 @@ int main() {
             printf("Epoch %d, loss: %.4f, accuracy per iter: %.2f%%\n", i + 1, loss, accuracy_i * 100);
         }
 
-        // After training, send updated weights to server
-        std::string updated_network_str = serialize_network(networkClient);
+        std::string updated_network_str = networkClient.serialize() + "\n";
 
-        cout << updated_network_str << endl;
+        log("Sending network to server: " + updated_network_str + "\n");
 
         if (send(clientSocket, updated_network_str.c_str(), updated_network_str.length(), 0) < 0) {
             exitWithError("Failed to send network to server");
