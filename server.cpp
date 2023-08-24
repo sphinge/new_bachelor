@@ -13,7 +13,7 @@
 #include <string>
 
 const int EXCHANGES = 2;
-const int num_clients = 1;
+const int num_clients = 2;
 
 
 using namespace std;
@@ -51,6 +51,7 @@ public:
             neurons.push_back(Neuron(nInputs));
         }
     }
+
 };
 
 
@@ -69,7 +70,7 @@ public:
 
     vector<vector<float>> getWeights() const{
         vector<vector<float>> all_weights;
-        for (auto &layer : layers) {
+        for (const auto &layer : layers) {
             for (auto &neuron : layer.neurons) {
                 all_weights.push_back(neuron.weights);
             }
@@ -86,117 +87,129 @@ public:
             }
         }
     }
+
+    vector<float> getBiases() const {
+        vector<float> all_biases;
+        for (const auto &layer : layers) {
+            for (auto &neuron : layer.neurons) {
+                all_biases.push_back(neuron.bias);
+            }
+        }
+        return all_biases;
+    }
+
+    void setBiases(const vector<float>& biases) {
+        int counter = 0;
+        for (auto &layer : layers) {
+            for (auto &neuron : layer.neurons) {
+                neuron.bias = biases[counter++];
+            }
+        }
+    }
+
+    std::string serialize() const {
+        std::ostringstream oss;
+
+        auto weights = getWeights();
+        for (const auto& neuronWeights : weights) {
+            for (float weight : neuronWeights) {
+                oss << weight << " ";
+            }
+        }
+
+        auto biases = getBiases();
+        for (float bias : biases) {
+            oss << bias << " ";
+        }
+
+        std::string result = oss.str();
+        if (!result.empty()) {
+            result.pop_back(); // Remove the last space
+        }
+
+        return result;
+    }
+
+    void deserialize(const std::string& serialized) {
+        std::istringstream iss(serialized);
+
+        std::vector<float> allValues;
+        float value;
+        while (iss >> value) {
+            allValues.push_back(value);
+        }
+
+        std::vector<std::vector<float>> weights = getWeights();
+        size_t index = 0;
+
+        for (auto& neuronWeights : weights) {
+            for (size_t j = 0; j < neuronWeights.size(); ++j) {
+                neuronWeights[j] = allValues[index++];
+            }
+        }
+
+        setWeights(weights);
+
+        std::vector<float> biases;
+        while (index < allValues.size()) {
+            biases.push_back(allValues[index++]);
+        }
+
+        setBiases(biases);
+    }
+
 };
 
-
-class FederatedServer {
+class GlobalAggregator {
 public:
-    Network global_model;
-    vector<Network> client_models;
-
-    FederatedServer(const Network& model, int num_clients) : global_model(model), client_models(num_clients, model) {}
+    Network globalModel;
 
 
-    string serialize_weights(const vector<vector<float>>& weights) {
-        ostringstream oss;
-        for (const auto& weight_list : weights) {
-            for (float w : weight_list) {
-                oss << w << ' ';  // Space-separated values within a layer
-            }
-            oss << ';';  // Semicolon-separated layers
-        }
-        return oss.str();
-    }
+    GlobalAggregator(vector<int> nNeuronsEachLayer) : globalModel(nNeuronsEachLayer) {}
 
+    // Aggregate models from clients
+    void aggregate(const std::vector<std::string>& serializedModels) {
+        std::vector<std::vector<float>> sumWeights = globalModel.getWeights();
+        std::vector<float> sumBiases = globalModel.getBiases();
 
-    vector<vector<float>> deserialize_weights(const string& serialized_weights) {
-        vector<vector<float>> weights;
-        stringstream ss(serialized_weights);
-        string layer_str;
+        for (const auto& serialized : serializedModels) {
+            Network clientModel = globalModel;
+            clientModel.deserialize(serialized);
 
+            auto clientWeights = clientModel.getWeights();
+            auto clientBiases = clientModel.getBiases();
 
-        while (getline(ss, layer_str, ';')) {
-            stringstream layer_ss(layer_str);
-            vector<float> weight_list;
-            float weight;
-            while (layer_ss >> weight) {
-                weight_list.push_back(weight);
-            }
-            weights.push_back(weight_list);
-        }
-
-
-        return weights;
-    }
-
-    std::string serialize_network(const Network &network) {
-        std::ostringstream oss;
-        // Serialize the network's topology
-        for (size_t i = 0; i < network.layers.size(); ++i) {
-            oss << network.layers[i].nNeurons << (i < network.layers.size() - 1 ? "," : ";");
-        }
-        // Serialize the network's weights
-        oss << serialize_weights(network.getWeights());
-        return oss.str();
-    }
-
-    Network deserialize_network(const std::string &serialized_network) {
-        std::istringstream iss(serialized_network);
-        std::string topology, weights_str;
-        getline(iss, topology, ';');
-        getline(iss, weights_str);
-
-        std::vector<int> nNeuronsEachLayer;
-        std::istringstream top_iss(topology);
-        std::string neuron_count_str;
-        while (getline(top_iss, neuron_count_str, ',')) {
-            nNeuronsEachLayer.push_back(stoi(neuron_count_str));
-        }
-
-        Network network(nNeuronsEachLayer);
-        network.setWeights(deserialize_weights(weights_str));
-        return network;
-    }
-
-
-    void distribute_weights() {
-        auto global_weights = global_model.getWeights();
-        for (auto& client_model: client_models) {
-            client_model.setWeights(global_weights);
-        }
-    }
-
-
-    void aggregate_weights() {
-        vector<vector<float>> summed_weights = global_model.getWeights();
-        for (auto& weight_list: summed_weights) {
-            for (float& w: weight_list) {
-                w = 0;
-            }
-        }
-
-
-        for (auto& client_model: client_models) {
-            auto client_weights = client_model.getWeights();
-            for (size_t i = 0; i < client_weights.size(); ++i) {
-                for (size_t j = 0; j < client_weights[i].size(); ++j) {
-                    summed_weights[i][j] += client_weights[i][j];
+            for (size_t i = 0; i < sumWeights.size(); i++) {
+                for (size_t j = 0; j < sumWeights[i].size(); j++) {
+                    sumWeights[i][j] += clientWeights[i][j];
                 }
             }
-        }
 
-
-        for (auto& weight_list: summed_weights) {
-            for (float& w: weight_list) {
-                w /= client_models.size();
+            for (size_t i = 0; i < sumBiases.size(); i++) {
+                sumBiases[i] += clientBiases[i];
             }
         }
 
+        // Average the weights and biases
+        for (auto& neuronWeights : sumWeights) {
+            for (float& weight : neuronWeights) {
+                weight /= serializedModels.size();
+            }
+        }
 
-        global_model.setWeights(summed_weights);
+        for (float& bias : sumBiases) {
+            bias /= serializedModels.size();
+        }
+
+        globalModel.setWeights(sumWeights);
+        globalModel.setBiases(sumBiases);
+    }
+
+    // Get the serialized global model to distribute to clients
+    std::string getSerializedGlobalModel() {
+        return globalModel.serialize();
     }
 };
-
 
 namespace {
     const int BUFFER_SIZE = 30720;
@@ -219,16 +232,16 @@ namespace http
 
     class TcpServer {
     public:
-        TcpServer(std::string ip_address, int port, FederatedServer& fed_server);
+        TcpServer(std::string ip_address, int port, GlobalAggregator& globalModel);
         ~TcpServer();
         void startListen();
         void sendNetworkUpdateToClients(const std::string& networkData);
-        std::string receiveNetworkUpdateFromClient();
+        std::string receiveNetworkUpdateFromClient(int client_socket);
         std::vector<int> all_connected_clients;
         
 
     private:
-        FederatedServer& federated_server;
+
         std::string m_ip_address;
         int m_port;
         int m_socket;
@@ -237,10 +250,10 @@ namespace http
         struct sockaddr_in m_socketAddress;
         socklen_t m_socketAddress_len;
         std::string m_serverMessage;
-
+        GlobalAggregator& m_globalModel;
         int startServer();
         void closeServer();
-        void acceptConnection(int &new_socket);
+        int acceptConnection();
         std::string buildResponse();
         void sendResponse();
     };
@@ -251,10 +264,10 @@ namespace http
 namespace http {
 
 
-    TcpServer::TcpServer(std::string ip_address, int port, FederatedServer& fed_server)
-        : m_ip_address(ip_address), m_port(port), federated_server(fed_server), m_socket(-1), 
+    TcpServer::TcpServer(std::string ip_address, int port, GlobalAggregator& globalModel)
+        : m_ip_address(ip_address), m_port(port), m_socket(-1), 
           m_new_socket(-1), m_socketAddress(),
-          m_socketAddress_len(sizeof(m_socketAddress))
+          m_socketAddress_len(sizeof(m_socketAddress)), m_globalModel(globalModel)
     {
         m_socketAddress.sin_family = AF_INET;
         m_socketAddress.sin_port = htons(m_port);
@@ -276,13 +289,12 @@ namespace http {
         }
     }
 
-    std::string TcpServer::receiveNetworkUpdateFromClient() {
+    std::string TcpServer::receiveNetworkUpdateFromClient(int client_socket) {
         char buffer[BUFFER_SIZE] = {0};
         std::string accumulator;
 
-
         while (true) {
-            int bytesReceived = recv(m_new_socket, buffer, BUFFER_SIZE, 0);
+            int bytesReceived = recv(client_socket, buffer, BUFFER_SIZE, 0);
             if (bytesReceived < 0) {
                 // Handle the error here
                 return "";
@@ -291,9 +303,7 @@ namespace http {
                 break;
             }
 
-
             accumulator += std::string(buffer, bytesReceived);
-
 
             if (accumulator.find("\n") != std::string::npos) {
                 // If delimiter found, break the loop
@@ -301,16 +311,15 @@ namespace http {
             }
         }
 
-
         // Removing the delimiter before returning
         size_t endPos = accumulator.find("\n");
         if (endPos != std::string::npos) {
             accumulator = accumulator.substr(0, endPos);
         }
 
-
         return accumulator;
     }
+
 
 
     TcpServer::~TcpServer() {
@@ -345,66 +354,93 @@ namespace http {
         exit(0);
     }
 
-   void TcpServer::startListen()
-{
-    if (listen(m_socket, 20) < 0)
+    void TcpServer::startListen()
     {
-        exitWithError("Socket listen failed");
+        if (listen(m_socket, 20) < 0)
+        {
+            exitWithError("Socket listen failed");
+        }
+
+        std::ostringstream ss;
+        ss << "\n*** Listening on ADDRESS: " << inet_ntoa(m_socketAddress.sin_addr) << " PORT: " << ntohs(m_socketAddress.sin_port) << " ***\n\n";
+        log(ss.str());
+
+
+        // Array to store client socket descriptors
+        std::vector<int> client_sockets(num_clients); 
+
+        for (int i = 0; i < num_clients; i++) 
+        {
+            log("====== Waiting for client " + to_string(i+1) + "======\n");
+            client_sockets[i] = acceptConnection();
+            log(std::to_string(i+1) + ": client connected");
+        }
+
+        // Send the global model to each client
+        std::string serializedGlobalModel = m_globalModel.getSerializedGlobalModel();
+        log("Network sending model: " + serializedGlobalModel + "\n\n");
+        sendNetworkUpdateToClients(serializedGlobalModel);
+
+        // Let's assume a constant for the number of exchanges
+        const int EXCHANGES = 10;
+        for (int iteration = 0; iteration < EXCHANGES; ++iteration) 
+        {
+            std::vector<std::string> receivedModels;
+            log("Waiting for models...\n");
+            sleep(5);
+
+            // Wait for each client to send their updated model
+            for (int i = 0; i < num_clients; ++i) 
+            {
+                std::string clientModelUpdate = receiveNetworkUpdateFromClient(client_sockets[i]);
+                log("Network update received from client" + to_string(i));
+                receivedModels.push_back(clientModelUpdate);
+            }
+
+            // Aggregate the client models to update the global model
+            m_globalModel.aggregate(receivedModels);
+
+            // Serialize aggregated network
+            serializedGlobalModel = m_globalModel.getSerializedGlobalModel();
+            log("This is the new model: " + serializedGlobalModel + "\n\n");
+
+            // Send the updated global model back to clients
+            sendNetworkUpdateToClients(serializedGlobalModel);
+            log("Model sent");
+        }
+
+        // Close all client sockets
+        for (int i = 0; i < num_clients; ++i) 
+        {
+            close(client_sockets[i]);
+        }
     }
 
 
-    std::ostringstream ss;
-    ss << "\n*** Listening on ADDRESS: " << inet_ntoa(m_socketAddress.sin_addr) << " PORT: " << ntohs(m_socketAddress.sin_port) << " ***\n\n";
-    log(ss.str());
-
-
-        log("====== Waiting for a connection ======\n\n\n");
-        acceptConnection(m_new_socket);
-
-        // Send the global model to each client
-        std::string serialized_global_model = federated_server.serialize_network(federated_server.global_model);
-        sendNetworkUpdateToClients(serialized_global_model);
-
-        for (int iteration = 0; iteration < EXCHANGES; ++iteration) {
-
-            // Wait for each client to send their updated model
-            for (int i = 0; i < num_clients; ++i) {
-                log("con");
-                std::string client_model_str = receiveNetworkUpdateFromClient();
-                log(client_model_str);
-                Network client_model = federated_server.deserialize_network(client_model_str);
-                federated_server.client_models[i] = client_model;
-            }
-
-
-            // Aggregate the client models to update the global model
-            federated_server.aggregate_weights();
-
-            //serialize aggregated network
-            serialized_global_model = federated_server.serialize_network(federated_server.global_model);
-
-            //send network back to clients
-            sendNetworkUpdateToClients(serialized_global_model);
-            
-        }
-
-
-        close(m_new_socket);
-
-}
-
-
-
-    void TcpServer::acceptConnection(int &new_socket) {
-        new_socket = accept(m_socket, (sockaddr *)&m_socketAddress, &m_socketAddress_len);
-        if (new_socket != -1) {
+    int TcpServer::acceptConnection() 
+    {
+        int new_socket = accept(m_socket, (sockaddr *)&m_socketAddress, &m_socketAddress_len);
+        if (new_socket != -1) 
+        {
             all_connected_clients.push_back(new_socket);
-        } else {
+
+            // Log the acceptance of the new connection
+            std::ostringstream ss;
+            ss << "Accepted connection from ADDRESS: " << inet_ntoa(m_socketAddress.sin_addr) << "; PORT: " << ntohs(m_socketAddress.sin_port);
+            log(ss.str());
+
+            return new_socket; // Return the socket descriptor
+        } 
+        else 
+        {
             std::ostringstream ss;
             ss << "Server failed to accept incoming connection from ADDRESS: " << inet_ntoa(m_socketAddress.sin_addr) << "; PORT: " << ntohs(m_socketAddress.sin_port);
             exitWithError(ss.str());
         }
+
+        return -1; // If we get here, there was an error
     }
+
 
     std::string TcpServer::buildResponse()
     {
@@ -445,26 +481,10 @@ int main()
 {
     srand(time(NULL));
 
-    vector<int> nNeuronsEachLayer = {4, 8, 3}; 
-    Network global_model(nNeuronsEachLayer);
+    vector<int> nNeurons = {4, 8, 3};  // example architecture: 2 neurons in input layer, 3 in hidden layer, 1 in output layer
+    GlobalAggregator globalModel(nNeurons);
 
-    std::vector<std::vector<float>> weights = global_model.getWeights();
-
-    for (size_t layer_idx = 0; layer_idx < weights.size(); ++layer_idx) {
-        std::cout << "Weights for Layer " << layer_idx + 1 << ":\n";
-        for (size_t weight_idx = 0; weight_idx < weights[layer_idx].size(); ++weight_idx) {
-            std::cout << weights[layer_idx][weight_idx] << " ";
-        }
-        std::cout << "\n\n";
-    }
-
-    FederatedServer federated_server(global_model, num_clients);
-
-    std::string printing = federated_server.serialize_network(federated_server.global_model);
-
-    std::cout << printing << std::endl;
-
-    http::TcpServer http_server("127.0.0.1", 8080, federated_server); // passing the reference here
+    http::TcpServer http_server("127.0.0.1", 8080, globalModel); // passing the reference here
     http_server.startListen();
 
     return 0;
