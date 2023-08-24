@@ -1,3 +1,0 @@
-/home/mayag88/Documents/Code/new_bachelor/LogisticRegression/CMakeFiles/Logistic.dir
-/home/mayag88/Documents/Code/new_bachelor/LogisticRegression/CMakeFiles/edit_cache.dir
-/home/mayag88/Documents/Code/new_bachelor/LogisticRegression/CMakeFiles/rebuild_cache.dir
