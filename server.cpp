@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <string>
 
-const int EXCHANGES = 2;
 const int num_clients = 2;
 
 
