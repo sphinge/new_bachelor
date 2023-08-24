@@ -1,3 +1,0 @@
-/home/wiktoria/Desktop/Thesis/NeuralNetwork/CMakeFiles/Neural.dir
-/home/wiktoria/Desktop/Thesis/NeuralNetwork/CMakeFiles/edit_cache.dir
-/home/wiktoria/Desktop/Thesis/NeuralNetwork/CMakeFiles/rebuild_cache.dir
